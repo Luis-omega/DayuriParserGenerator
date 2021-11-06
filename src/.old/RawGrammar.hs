@@ -5,22 +5,8 @@ import Data.Text(Text, pack, unpack)
 import qualified Data.Text as T
 import qualified Data.DList as D
 import Data.DList(DList)
+import CompilerShow
 
--- | Functions used for error format, debug format and synthesis format
-class CompilerShow a where
-  -- | A nice way to watch the code
-  prettyShow :: a -> DList Text
-  prettyShow = reconstructShow
-  -- | Must be full of annotations and easy parseable
-  debugShow :: a -> DList Text
-  debugShow = reconstructShow
-  -- | Must attempt to reconstruct the object on file
-  reconstructShow:: a -> DList Text
-  
-runShow :: CompilerShow a => (a-> DList Text) -> a -> Text
-runShow f = T.concat . D.toList . f  
-
-embed = D.singleton . pack . show
 
 -- | A File position indicated using Text chars (Unicode code points) to count. 
 data Position = Position {
@@ -82,19 +68,49 @@ data Token  =
   | TnameBinder Region 
   | TnameDerefer Region
   | TcodeString Region
-  | TImport Region
+  -- | @import  
+  | Timport Region
+  -- | @start
+  | Tstart Region
+  | TimportPath Region Text
 
+-- | All grammar rules are added as data types
+-- | There some repeats as Importable 
+
+data ImportPath =  ImportPath Region Text
+
+data Importable = ImportRule Region RuleName
+  | ImportTerminal Region Terminal  
+
+data Import = ImportAll Region ImportPath
+  | ImportQualified Region ImportPath
+  | ImportSome Region ImportPath [Importable] 
+  | ImportHide Region ImportPath [ImportPath]
 
 data Terminal = Terminal Region Text 
 
-data DeclareTerminals = DeclareTerminals Region [Terminal] 
+data TerminalDeclaration = TerminalDeclaration Region [Terminal] 
 
-data DefineTerminal = DefineTerminal Region Terminal TerminalExpression
+data TerminalDefinition = TerminalDefinition Region Terminal TerminalExpression
 
 data TerminalExpression = TerminalString Region Text
   | TerminalRegex Region Text
-  | TerminalConcat Region TerminalExpression
+  | TerminalConcat Region [TerminalExpression]
   | TerminalFromTerminal Region Text
 
 
+data RuleName = RuleName Region Text
+
+data RuleDeclaration = RuleDeclaration Region RuleName [RuleExpression]
+
+data RuleExpression = RuleString Region Text
+  -- | The regular name for rules and terminals inside rules
+  | RuleIdentifier Region Text
+  -- | Bind a rule expression to variable 
+  | RuleVariable Region Text RuleExpression
+  | RuleOr Region RuleExpression RuleExpression
+  | RuleGroup Region [RuleExpression]
+  | RuleStar Region RuleExpression
+  | RulePlus Region RuleExpression
+  | RuleOptional Region RuleExpression
 

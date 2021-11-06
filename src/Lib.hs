@@ -1,6 +1,10 @@
+{-# Language OverloadedStrings #-}
 module Lib
     ( someFunc
     ) where
 
+import ParserCore
+
+
 someFunc :: IO ()
-someFunc = putStrLn "someFunc"
+someFunc =  putStrLn "hi"
