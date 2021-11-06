@@ -76,13 +76,27 @@ anonTerminal2String x =
   let str = unpack x in
     M.findWithDefault ("_anon_" ++ str) str anonSymbols2String 
 
+data IntermediateSymbol =
+    InterTerminal Text
+  | InterNonTerminal Text
+  | InterMacroVar Text
+  | InterExpanded Text Text
+  | InterEmpty
+  deriving (Eq,Ord)
+
+instance Show IntermediateSymbol where 
+  show ( InterTerminal t) = unpack t
+  show ( InterNonTerminal t) = unpack t
+  show ( InterMacroVar t) = unpack t
+  show ( InterExpanded t1 t2) = unpack t1 ++ "@" ++unpack t2
+  show InterEmpty = "_empty"
 
 data Symbol = 
-    Terminal Path
-  | NonTerminal Path
+    Terminal Text
+  | NonTerminal Text
   -- | name of macro followed by rule name 
-  | ExpandedMacro Path Path
-  | Star [Path]
+  | ExpandedMacro Text Text
+  | Star [Text]
   | Empty 
   deriving Eq
 
@@ -95,9 +109,9 @@ instance Show Symbol  where
   show Empty = "_empty"
 
 instance HasNames Symbol where
-  getNames (Terminal v) = getNames v
-  getNames (NonTerminal v) = getNames v
-  getNames (ExpandedMacro name reason) = getNames name ++ [pack "@"] ++ getNames reason
+  getNames (Terminal v) =  [v]
+  getNames (NonTerminal v) = [v]
+  getNames (ExpandedMacro name reason) =  [pack $ unpack name ++ "@" ++ unpack reason]
   getNames (Star _) = [pack "_start"]
   getNames Empty = [pack "_empty"]
 
@@ -292,3 +306,24 @@ checkMacros ls =
           Right ()
       _ -> Left $ MacroCalledNotFound call
   checkCalls = lefts $ map checkCall calls
+
+
+sourface2Intermediate :: [TopLevel info SourfaceSymbol] -> [TopLevel info IntermediateSymbol]
+sourface2Intermediate = map (fmap s2i) 
+  where 
+    cast = pack . show
+    s2i old@( MaybeTerminal t) = InterTerminal . cast $  old
+    s2i old@( MaybeNonTerminal t) = InterNonTerminal . cast  $ old
+    s2i old@( AnonTerminal t) = InterTerminal (cast old)
+    s2i old@( MacroVar t )  = InterMacroVar  . cast $ old
+    s2i UserEmpty = InterEmpty
+
+-- we need to expand macro, but as macros could be called by two productions
+-- of the same rule, we need to count the amount of occurrences
+--expandMacro :: Int -> Bnf i IntermediateSymbol -> (Bnf i IntermediateSymbol, Bnf i IntermediateSymbol)
+--expandMacro counter ()
+--    InterTerminal Text
+--  | InterNonTerminal Text
+--  | InterMacroVar Text
+--  | InterExpanded Text Text
+--  | InterEmpty

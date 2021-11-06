@@ -163,6 +163,59 @@ replaceMacroVars = [
     }
   ]
 
+intermediateCast :: [TopLevel () IntermediateSymbol]
+intermediateCast = [
+  Rule () NoInline padd 
+    (
+      Concat () $ map (Token ()) [InterNonTerminal "add", InterTerminal "_Plus", InterNonTerminal "mul"]
+    ) Nothing
+  ,Rule () NoInline padd (Token () $ InterNonTerminal "mul") Nothing
+  ,Rule () NoInline pmul 
+    ( 
+      MacroCall () (mkpath "op_left") $ map (Token ()) 
+        [
+          InterTerminal "_Star"
+          ,InterNonTerminal "mul"
+          ,InterNonTerminal "atom"
+        ]
+    ) Nothing
+  ,Rule () NoInline patom 
+    (
+      Concat () $ map (Token ()) 
+        [
+          InterTerminal "_Lparen"
+          ,InterNonTerminal "add"
+          ,InterTerminal "_Rparen"
+        ]
+    ) Nothing
+  ,Rule () NoInline patom (Token () $ InterTerminal "int") Nothing
+  ,Macro {
+    macroInfo=()
+    ,macroInline=NoInline 
+    ,macroName=Path ("op_left",[])
+    ,macroArgsCount=3
+    ,macroArgs=[mkpath "op", mkpath "top_level", mkpath "lower_level" ] 
+    ,macroBody=Concat () $ map (Token ()) 
+      [
+        InterMacroVar "top_level"
+        ,InterMacroVar "op"
+        ,InterMacroVar "lower_level"
+      ]
+    ,macroFunction=Nothing
+    }
+  ,Macro {
+    macroInfo=()
+    ,macroInline=NoInline 
+    ,macroName=Path ("op_left",[])
+    ,macroArgsCount=3
+    ,macroArgs=[mkpath "op", mkpath "top_level", mkpath "lower_level" ] 
+    ,macroBody=Concat () $ map (Token ()) 
+      [
+        InterMacroVar "top_level"
+      ]
+    ,macroFunction=Nothing
+    }
+  ]
 (#=)::(HasCallStack, Show a, Eq a) => a -> a -> Expectation
 (#=) = shouldBe
 
@@ -184,6 +237,9 @@ checkNames = do
 
     it "Check all definitions of same macros has same number of args and check all calls" $
       checkMacros replaceMacroVars #= Right () 
+
+    it "Cast from sourface to intermediat for macro expansion" $
+      sourface2Intermediate replaceMacroVars  #= intermediateCast 
 
 spec = checkNames
 
