@@ -10,6 +10,7 @@ import qualified Data.IntMap as Mi
 import qualified Data.Set as S
 import Data.Set (Set)
 import Data.Maybe
+import Data.Either
 import Data.Foldable
 
 import Debug.Trace (trace)
@@ -199,3 +200,95 @@ sourfaceSetNonTerminals terminals rules =
         original
     replaceSourface l = l
     cast = pack . show 
+
+
+
+sourfaceSetMacroVars :: [TopLevel info SourfaceSymbol] -> [TopLevel info SourfaceSymbol]
+sourfaceSetMacroVars = map replaceInTop
+  where
+  replaceInTop :: TopLevel i SourfaceSymbol -> TopLevel i SourfaceSymbol
+  replaceInTop old@Rule{}= old
+  replaceInTop old@Macro {macroArgs=args, macroBody=body}= 
+    old{macroBody=  loop (map replace args) body}
+
+  loop [] body = body
+  loop (f:fs) body = loop fs (f body)
+
+  replace :: Path -> Bnf i SourfaceSymbol -> Bnf i SourfaceSymbol
+  replace x term = 
+    case term of 
+      Token info symbol -> Token info (symbolReplace x symbol)
+      Concat info ls -> Concat info $ map (replace x) ls
+      old -> old
+  
+  symbolReplace :: Path -> SourfaceSymbol -> SourfaceSymbol
+  symbolReplace x  term =
+    case term of 
+      old@(MaybeNonTerminal p) -> if x==p then MacroVar p else old
+      old@(MaybeTerminal p) -> if x==p then MacroVar p else old
+      old -> old
+          
+
+getMacroCalls :: [TopLevel info SourfaceSymbol] -> [Bnf info SourfaceSymbol]
+getMacroCalls ls =
+  case ls of 
+  [] -> []
+  Rule{ruleBody=body}:xs -> getCalls body++getMacroCalls xs
+  old@Macro{macroBody=body}:xs -> getCalls body++getMacroCalls xs
+ where 
+  getCalls :: Bnf info SourfaceSymbol -> [Bnf info SourfaceSymbol]
+  getCalls (Concat info ls) =  concatMap getCalls ls
+  getCalls old@(MacroCall _ _ args) = old: concatMap getCalls args
+  getCalls other = []
+
+
+getMacroDefinitions :: [TopLevel info SourfaceSymbol] -> [TopLevel info SourfaceSymbol]
+getMacroDefinitions [] = []
+getMacroDefinitions (Rule{}:xs) = getMacroDefinitions xs
+getMacroDefinitions (old@Macro{}:xs) =  old:getMacroDefinitions xs
+
+
+data MacroError info symbol= 
+    MultipleDefinitions (TopLevel info SourfaceSymbol) (TopLevel info SourfaceSymbol)
+  | BadArgsNumber (TopLevel info SourfaceSymbol) (Bnf info SourfaceSymbol)
+  | MacroCalledNotFound (Bnf info SourfaceSymbol)
+  deriving Eq
+
+instance Show symbol => Show (MacroError i symbol )where
+  show (MultipleDefinitions def1 def2) = "Bad Definition of macro: " ++ show def1 ++ " with macro" ++ show def2
+  show (BadArgsNumber def call) = "Bad macro call " ++ show call ++ " to macro " ++ show def
+  show (MacroCalledNotFound call) = "Call to non existent macro " ++ show call
+
+checkMacros :: [TopLevel info SourfaceSymbol] -> Either [MacroError info SourfaceSymbol] ()
+checkMacros ls = 
+  case  checkDefinitions definitions ++ checkCalls of
+    [] -> Right ()
+    ls -> Left ls
+  where 
+  calls = getMacroCalls ls
+  definitions = getMacroDefinitions ls
+  checkDefinitionCoherent x defs = lefts $ map (coherent x) defs
+  coherent m1@Macro{macroName=name1, macroArgs=args1} m2@Macro{macroName=name2, macroArgs=args2} =
+    if name1==name2 then
+      if args1==args2 then
+        Right ()
+      else 
+        Left $ MultipleDefinitions m1 m2
+    else Right ()
+  getDefinition name []= Nothing
+  getDefinition name (old@Macro{macroName=name2}:xs)= 
+    if name ==name2 then 
+      Just old
+    else 
+      getDefinition name xs
+  checkDefinitions [] = []
+  checkDefinitions (x:xs)= checkDefinitionCoherent x xs ++ checkDefinitions xs
+  checkCall call@(MacroCall info name args) = 
+    case getDefinition name definitions of 
+      Just def@Macro{macroArgsCount=count} ->
+        if count /= length args then  
+          Left $ BadArgsNumber def call
+        else 
+          Right ()
+      _ -> Left $ MacroCalledNotFound call
+  checkCalls = lefts $ map checkCall calls

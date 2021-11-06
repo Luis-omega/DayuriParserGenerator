@@ -119,8 +119,8 @@ replaceNonTerminals = [
     }
   ]
 
-correctMacros :: [TopLevel () SourfaceSymbol]
-correctMacros = [
+replaceMacroVars :: [TopLevel () SourfaceSymbol]
+replaceMacroVars = [
   Rule () NoInline padd 
     (
       Concat () $ map (Token ()) [MaybeNonTerminal padd, pplus, MaybeNonTerminal pmul]
@@ -180,7 +180,10 @@ checkNames = do
       sourfaceSetNonTerminals terminalNames parsedRules #= Right replaceNonTerminals 
 
     it "Subtitution of MaybeTerminal for MacroVar in Macros body" $
-      sourfaceSetMacroVar replaceNonTerminals #= correctMacros
+      sourfaceSetMacroVars replaceNonTerminals #= replaceMacroVars
+
+    it "Check all definitions of same macros has same number of args and check all calls" $
+      checkMacros replaceMacroVars #= Right () 
 
 spec = checkNames
 
