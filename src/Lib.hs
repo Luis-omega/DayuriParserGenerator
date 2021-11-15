@@ -3,7 +3,6 @@ module Lib
     ( someFunc
     ) where
 
-import ParserCore
 
 
 someFunc :: IO ()
