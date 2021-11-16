@@ -56,8 +56,8 @@ cat x =
 
 term x =  
   case P.fromText x of 
-    Right y -> Terminal r y
-    Left _ -> Terminal r (N.singleton "")
+    Right y -> Terminal r y ""
+    Left _ -> Terminal r (N.singleton "") ""
 
 
 (#=)::(HasCallStack, Show a, Eq a) => a -> a -> Expectation

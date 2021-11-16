@@ -55,11 +55,11 @@ suExp2NList exp terminals =  N.fromList $ convertIdentifiers exp
     convertIdentifiers :: Su.Exp -> [I.Kind]
     convertIdentifiers (Su.Concat r e) = concat $ N.toList $ fmap convertIdentifiers e
     convertIdentifiers (Su.Identifier _ e) = 
-      if any ((e ==) . (\(Su.Terminal _ n)-> n)) terminals then
+      if any ((e ==) . (\(Su.Terminal _ n _)-> n)) terminals then
         [I.Terminal (P.toText e)]
       else 
         [I.NonTerminal (P.toText e)]
     convertIdentifiers Su.Empty =  []
 
 suTerminal2Iterminal :: Su.Terminal  -> I.Kind
-suTerminal2Iterminal (Su.Terminal _ p) = I.Terminal $ P.toText  p
+suTerminal2Iterminal (Su.Terminal _ p _) = I.Terminal $ P.toText  p

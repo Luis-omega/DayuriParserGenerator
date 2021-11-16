@@ -27,7 +27,7 @@ data InlineFlag = Inline
   | NoInline
   deriving (Eq, Show)
 
-data Terminal = Terminal Range Path 
+data Terminal = Terminal Range Path Text
   deriving (Eq, Show)
 
 
@@ -82,7 +82,7 @@ getTerminalRuleOverlap :: [Terminal] -> [Rule] -> [(Range,Range,Path)]
 getTerminalRuleOverlap terminals rules = 
   concatMap localfind terminals
   where 
-    localfind (Terminal r1 n)= 
+    localfind (Terminal r1 n _ )= 
       case L.find ((n==). name) rules of
         Nothing -> []
         Just rule -> [(r1, range rule, n)]
@@ -118,10 +118,10 @@ getNonTerminals = map name
 
 getUndeclaredIdentifiers :: [TopLevel] -> [(Range,Path)]
 getUndeclaredIdentifiers top = 
-  [(r,x) | (Terminal r x)<- terms, Rs.elem x diff2 ] ++ [(range rl, name rl) | rl<- rls, Rs.elem (name rl) diff2 ]
+  [(r,x) | (Terminal r x _)<- terms, Rs.elem x diff2 ] ++ [(range rl, name rl) | rl<- rls, Rs.elem (name rl) diff2 ]
   where 
   (terms, rls)= divideTop top mempty mempty  
-  terminals = map (\(Terminal r x)->x) terms
+  terminals = map (\(Terminal r x _)->x) terms
   nonterminals = getNonTerminals rls
   
   all = [x | (_,x) <- getUsedIdentifiers rls]
@@ -136,7 +136,7 @@ isProductiveExp :: [Rule] -> [Terminal] ->Exp -> Bool
 isProductiveExp _ _ Empty = True
 isProductiveExp rules terminals (Identifier _ n) = inTerminal || inRules
   where 
-    inTerminal = any (\(Terminal _ m)->n==m) terminals
+    inTerminal = any (\(Terminal _ m _)->n==m) terminals
     inRules = any ((n ==) .name ) rules
 isProductiveExp rules terminals (Concat _ e) = all (isProductiveExp rules terminals) e
 
