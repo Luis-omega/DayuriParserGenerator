@@ -87,6 +87,11 @@ getTerminalRuleOverlap terminals rules =
         Nothing -> []
         Just rule -> [(r1, range rule, n)]
 
+getOverlapTerminals :: [Terminal] -> [(Range,Range,Path)]
+getOverlapTerminals terminals = concatMap search terminals
+  where 
+    search (Terminal r n e) = [(r,r1,n) | (Terminal r1 n1 e1)<-terminals, n1==n, r1/=r]
+
 cleanMidleEmptyExp :: Exp -> Exp
 cleanMidleEmptyExp (Concat r e) = 
    let maped = fmap cleanMidleEmptyExp  e
@@ -166,7 +171,8 @@ data Error =
   | NonProductiveStart
   | StarIsOnlyEmpty
   | StarIsUnProductive
-  | OverlapingDefinitions [(Range,Range,Path)]
+  | OverlapingTerminalRule [(Range,Range,Path)]
+  | OverlapingTerminals [(Range,Range,Path)]
   deriving Show
 
 
@@ -209,18 +215,20 @@ getReachables rls =
 cleanUseless :: [Rule] -> [Terminal] -> Either Error [Rule]
 cleanUseless rules terminals = 
   case getTerminalRuleOverlap terminals rules of 
-    [] ->
-      if isStartDeclared rules then
-        if isStartDeclared nonMidleEmpty then
-          if isStartDeclared productive then
-            getReachables productive
-          else
-            Left StarIsUnProductive
+    [] ->case getOverlapTerminals terminals of 
+      [] ->
+        if isStartDeclared rules then
+          if isStartDeclared nonMidleEmpty then
+            if isStartDeclared productive then
+              getReachables productive
+            else
+              Left StarIsUnProductive
+          else 
+            Left StarIsOnlyEmpty 
         else 
-          Left StarIsOnlyEmpty 
-      else 
-        Left UndefinedStart
-    y-> Left $ OverlapingDefinitions y
+          Left UndefinedStart
+      y-> Left $ OverlapingTerminals y
+    y-> Left $ OverlapingTerminalRule y
   where 
     nonMidleEmpty = cleanMidleEmpty  rules
 
