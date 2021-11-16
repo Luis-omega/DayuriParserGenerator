@@ -158,7 +158,7 @@ cleanNonProductive :: [Rule] -> [Terminal] -> [Rule]
 cleanNonProductive rls = fst . divideProductiveNonProductive rls
 
 isStartDeclared :: [Rule] -> Bool
-isStartDeclared = not . any ( ("_start" ==) . P.toString . name)
+isStartDeclared = any ( ("_start" ==) . P.toString . name)
 
 data Error =
     UndefinedStart
@@ -167,37 +167,36 @@ data Error =
   | StarIsOnlyEmpty
   | StarIsUnProductive
   | OverlapingDefinitions [(Range,Range,Path)]
+  deriving Show
 
 
 
-getExpReachables :: Exp -> [(Range,Path)]
-getExpReachables = getIdentifiersExp
+getExpReachables :: Exp -> Set Text
+getExpReachables = S.fromList . map (\(x,y)-> P.toText y) . getIdentifiersExp
 
-getRuleReachables :: Rule -> [(Range,Path)]
+getRuleReachables :: Rule -> Set Text
 getRuleReachables = getExpReachables . body
 
-getReachables :: [Rule] -> Either Error [(Range,Path)]       
+getReachables :: [Rule] -> Either Error [Rule]
 getReachables rls = 
-  if hasStart then 
-    Right $ concatMap getRuleReachables rls
-  else 
-    Left  UndefinedStart
+  case filter (("_start"==). P.toText . name) rls of 
+    [] -> Left  UndefinedStart
+    start -> Right $ loop start
   where 
-    hasStart = isStartDeclared rls
+    rules2set rules = S.fromList $ map (P.toText . name) rules 
+    loop :: [Rule] -> [Rule]
+    loop reachables = 
+      let new_reachables_text = foldr ((<>) . getRuleReachables) (rules2set reachables) reachables
+          new_reachables = filter (\ x -> S.member (P.toText $ name x) new_reachables_text) rls
+          in
+          if new_reachables == reachables then
+            reachables
+          else 
+            loop new_reachables 
+              
 
--- | needs the reachables from getReachables
--- | and the undeclared from getUndeclaredIdentifiers
-getUndefinedReachables :: [(Range,Path)]->[(Range,Path)]->[(Range,Path)]
-getUndefinedReachables reachables undefined = 
-  filter find reachables 
-  where 
-    find (r,x) = any (\(_,w)->w==x) undefined
+      
 
--- | need the ouput of getReachables
-cleanUnReachables :: [Rule] -> [(Range,Path)] -> [Rule]
-cleanUnReachables rls reachables = filter isReachable rls
-  where 
-    isReachable rl = any (\(r,x) -> name rl == x) reachables 
 
 -- | Quit all unproductive and then all unreachables
 -- | in that order is guarantied that no more clean steps 
@@ -209,27 +208,23 @@ cleanUnReachables rls reachables = filter isReachable rls
 -- | between undefined and undeclared)
 cleanUseless :: [Rule] -> [Terminal] -> Either Error [Rule]
 cleanUseless rules terminals = 
-  if isStartDeclared rules then
-    if isStartDeclared nonMidleEmpty then
-      if isStartDeclared productive then
-        case getTerminalRuleOverlap terminals productive of 
-          [] ->
-                do
-                reachables <- getReachables productive
-                pure $ cleanUnReachables productive reachables
-          y-> Left $ OverlapingDefinitions y
-      else
-        Left StarIsUnProductive
-    else 
-      Left StarIsOnlyEmpty 
-  else 
-    Left UndefinedStart
+  case getTerminalRuleOverlap terminals rules of 
+    [] ->
+      if isStartDeclared rules then
+        if isStartDeclared nonMidleEmpty then
+          if isStartDeclared productive then
+            getReachables productive
+          else
+            Left StarIsUnProductive
+        else 
+          Left StarIsOnlyEmpty 
+      else 
+        Left UndefinedStart
+    y-> Left $ OverlapingDefinitions y
   where 
-    nonOverlaping = getTerminalRuleOverlap terminals rules
     nonMidleEmpty = cleanMidleEmpty  rules
-    nonMidleStartDeclared = isStartDeclared
 
-    (productive, unproductive) = divideProductiveNonProductive rules terminals 
+    productive = cleanNonProductive nonMidleEmpty terminals 
 
 
 getFirst :: M.Map Text (S.Set Text) -> [Text] -> S.Set Text
