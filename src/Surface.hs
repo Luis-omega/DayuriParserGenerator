@@ -17,6 +17,8 @@ import Path(Path)
 import qualified Path as P
 import Range
 import qualified RealSet as Rs
+import NList (NList)
+import qualified NList as N
 
 
 
@@ -46,7 +48,7 @@ data Rule =
 
 
 data Exp = 
-    Concat Range [Exp]
+    Concat Range (NList Exp)
   | Identifier Range Path
   | Empty
   deriving Eq
@@ -58,11 +60,8 @@ instance Show Exp where
   show Empty = "_empty"
 
 
-rule2Text :: Rule -> Text
-rule2Text r = P.toText $ name r
-
 instance Ord Rule where
-  a <= b = rule2Text a <= rule2Text b
+  a <= b = show a <= show b
 
 instance Show Rule where 
   show u = concat [show $ inline u, " ",show $ name u, " : ", show $ body u, end ]
@@ -80,19 +79,14 @@ divideTop ((DeclareRule x):ls) ts rs = divideTop ls ts (x:rs)
 
 cleanMidleEmptyExp :: Exp -> Exp
 cleanMidleEmptyExp (Concat r e) = 
-  case clean e of 
-    [] -> Empty
-    y ->Concat r (clean y)
-  where 
-    clean [] = []
-    clean (Empty:xs) = clean xs
-    clean (x:xs) = 
-        case cleanMidleEmptyExp x of 
-          Empty -> clean xs
-          y -> y:clean xs
-cleanMidleEmptyExp (Identifier r i) = Identifier r i
-cleanMidleEmptyExp Empty = Empty
-
+   let maped = fmap cleanMidleEmptyExp  e
+       filtered = N.filter (Empty /=) maped
+       in 
+       case filtered of 
+         Nothing -> Empty
+         Just x -> Concat r x
+cleanMidleEmptyExp w = w 
+      
 -- | Transform x->a  _empty  b,  to x->a b 
 -- | it won't clear x->empty rules
 cleanMidleEmptyRule :: Rule ->Rule
