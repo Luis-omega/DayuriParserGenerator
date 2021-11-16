@@ -6,6 +6,7 @@ module NList(
   ,toTuple
   ,append
   ,filter
+  ,singleton
 )where 
 
 import Prelude hiding(head,tail,filter)
@@ -13,6 +14,9 @@ import qualified Prelude as P
 
 data NList a = NList {head::a, tail::[a]}
   deriving (Functor, Foldable, Traversable, Eq)
+
+singleton :: a -> NList a
+singleton x = NList x []
 
 append :: a -> NList a -> NList a
 append x ls= NList x (head ls :tail ls)

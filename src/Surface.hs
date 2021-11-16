@@ -11,6 +11,7 @@ import Data.Set (Set)
 import qualified Data.Map as M
 import Data.Either
 import Data.Maybe
+import qualified Data.List as L
 
 
 import Path(Path)
@@ -76,6 +77,15 @@ divideTop [] ts rs = (ts,rs)
 divideTop ((DeclareTerminals _ x):ls) ts rs = divideTop ls (x++ts) rs
 divideTop ((DeclareRule x):ls) ts rs = divideTop ls ts (x:rs)
 
+
+getTerminalRuleOverlap :: [Terminal] -> [Rule] -> [(Range,Range,Path)]
+getTerminalRuleOverlap terminals rules = 
+  concatMap localfind terminals
+  where 
+    localfind (Terminal r1 n)= 
+      case L.find ((n==). name) rules of
+        Nothing -> []
+        Just rule -> [(r1, range rule, n)]
 
 cleanMidleEmptyExp :: Exp -> Exp
 cleanMidleEmptyExp (Concat r e) = 
@@ -156,6 +166,9 @@ data Error =
   | NonProductiveStart
   | StarIsOnlyEmpty
   | StarIsUnProductive
+  | OverlapingDefinitions [(Range,Range,Path)]
+
+
 
 getExpReachables :: Exp -> [(Range,Path)]
 getExpReachables = getIdentifiersExp
@@ -199,9 +212,12 @@ cleanUseless rules terminals =
   if isStartDeclared rules then
     if isStartDeclared nonMidleEmpty then
       if isStartDeclared productive then
-        do
-        reachables <- getReachables productive
-        pure $ cleanUnReachables productive reachables
+        case getTerminalRuleOverlap terminals productive of 
+          [] ->
+                do
+                reachables <- getReachables productive
+                pure $ cleanUnReachables productive reachables
+          y-> Left $ OverlapingDefinitions y
       else
         Left StarIsUnProductive
     else 
@@ -209,6 +225,7 @@ cleanUseless rules terminals =
   else 
     Left UndefinedStart
   where 
+    nonOverlaping = getTerminalRuleOverlap terminals rules
     nonMidleEmpty = cleanMidleEmpty  rules
     nonMidleStartDeclared = isStartDeclared
 
@@ -285,6 +302,5 @@ hasLoops rules terminals =
 
 findCycle :: [Rule] -> M.Map Text (Set Text) -> Either () [Text]
 findCycle rules firstSets = Left ()
-  where
     
 
