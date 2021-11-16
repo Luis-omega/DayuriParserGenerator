@@ -58,7 +58,7 @@ data Exp =
 instance Show Exp where 
   show ( Concat _ e ) = concatMap show e 
   show ( Identifier _ p ) = show p
-  show Empty = "_empty"
+  show Empty = "_Empty"
 
 
 instance Ord Rule where
@@ -102,7 +102,7 @@ cleanMidleEmptyExp (Concat r e) =
          Just x -> Concat r x
 cleanMidleEmptyExp w = w 
       
--- | Transform x->a  _empty  b,  to x->a b 
+-- | Transform x->a  _Empty  b,  to x->a b 
 -- | it won't clear x->empty rules
 cleanMidleEmptyRule :: Rule ->Rule
 cleanMidleEmptyRule r = r{body= cleanMidleEmptyExp $ body r}
@@ -238,13 +238,13 @@ cleanUseless rules terminals =
 getFirst :: M.Map Text (S.Set Text) -> [Text] -> S.Set Text
 getFirst firsts symbols= 
   case symbols of 
-    [] -> S.singleton "_empty"
+    [] -> S.singleton "_Empty"
     x:xs -> 
       let xFirst = fromMaybe S.empty (M.lookup x firsts ) in
-        if S.member "_empty" xFirst then
+        if S.member "_Empty" xFirst then
           case xs of 
             [] -> 
-              S.insert "_empty" xFirst 
+              S.insert "_Empty" xFirst 
             _ -> S.union xFirst $ getFirst firsts xs
         else 
           xFirst
@@ -256,7 +256,7 @@ condenseRules rules = M.fromListWith (++) [(P.toText $ name r, [r]) | r<- rules 
 exp2TextList :: Exp -> [Text]
 exp2TextList (Concat _ e) = concatMap exp2TextList e
 exp2TextList (Identifier _ i) = [P.toText i]
-exp2TextList Empty = ["_empty"]
+exp2TextList Empty = ["_Empty"]
 
 rule2TextList :: Rule -> [Text]
 rule2TextList = exp2TextList . body 
@@ -291,7 +291,7 @@ findFirst rules terminals = loop start
 -- | TODO : 
 -- | Fix This, you found the FIRST terminals set 
 -- | you need the nonterminals reachables as first 
--- | in the derivation as in x -> a b c , a -> w | _empty
+-- | in the derivation as in x -> a b c , a -> w | _Empty
 -- | the you got FIRST_NonTerminals x = {a, w, b}
 hasLoops :: [Rule] -> S.Set Text -> Either [(Text,S.Set Text)] ()
 hasLoops rules terminals =  
