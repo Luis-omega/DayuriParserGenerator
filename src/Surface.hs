@@ -43,7 +43,7 @@ data Rule =
       ,range::Range
       ,name::Path
       ,body::Exp
-      ,function::Maybe Text
+      ,function::Text
     }
   deriving Eq
 
@@ -67,10 +67,7 @@ instance Ord Rule where
 instance Show Rule where 
   show u = concat [show $ inline u, " ",show $ name u, " : ", show $ body u, end ]
     where
-      end = 
-        case function u of 
-          Just t -> " -> "++ show t  
-          Nothing -> " "
+      end =  " -> "++ show (function u)
 
 divideTop :: [TopLevel] -> [Terminal] -> [Rule] ->([Terminal],[Rule])
 divideTop [] ts rs = (ts,rs) 

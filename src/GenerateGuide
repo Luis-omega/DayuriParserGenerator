@@ -1,0 +1,102 @@
+{-# LANGUAGE OverloadedStrings, DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
+module Generate where
+
+import Prelude hiding (head,tail)
+import Data.List (intercalate)
+import qualified Data.IntMap as Mi
+import Data.Foldable hiding (toList)
+import Data.Text(Text, pack, unpack)
+import qualified Data.Text as T
+import qualified Data.Set as S
+import Data.Set (Set)
+import qualified Data.Map as M
+import Data.Either
+import Data.Maybe
+import Control.Monad.State(State)
+import qualified Control.Monad.State as St
+
+
+
+import Path(Path)
+import qualified Path as P
+import Range
+import qualified RealSet as Rs
+import NList (NList)
+import qualified NList as N
+
+
+import qualified Surface as Su
+import qualified Intern as I
+import qualified Translations as Tr
+
+
+data Token = Token1
+  | Token2
+  | Token3
+  | TokenEmptyReduce
+
+data Error state t = Error state [t]
+
+
+data Value t t2= 
+    VToken Token
+  | V0 t
+  | VEmptyReduce t2
+
+
+class LexerClass a where
+  getToken :: a -> Token
+
+data ReduceFunctionOrValue a = 
+    ReduceFunction (a -> ReduceFunctionOrValue a)
+  | ReduceValue a
+
+
+some1 k = some2
+
+some2 = ReduceValue (VToken Token1)
+
+emptyValueReduction k = VEmptyReduce k
+
+type Parser t1 t2 = State lexer (Either (Error lexer (Value t1 t2))) (ReduceFunctionOrValue (Value t1 t2))
+
+
+parsingK :: State lexer (Either (Error lexer (Value t1 t2))) (ReduceFunctionOrValue (Value t1 t2))
+parsingK =
+  do
+  lookAhead <- St.gets peekToken
+  case action lookAhead  of
+    SHIFT parsingJ -> 
+      do 
+      St.gets consumeToken
+      handleShift (VToken lookAhead) parsingJ
+    REDUCE r -> return $ return r
+    EMPTYREDUCE r -> handleShift (Vz r) parsingJ
+    
+
+where 
+
+  handleShift value f =
+    do
+    newValue <- f
+    case newValue of 
+      ReduceFunction G -> 
+        case G value of 
+          old@ReduceFunction newFunction -> old
+          ReduceValue k -> 
+            let newParse = goto k  in
+              handleShift k newParse
+      _ -> error "this can't happen"
+              
+    Left (Error st tok) -> return $ Left $ Error st (value:tok)
+
+  goto :: Value t1 t2 -> Parser (Value t1 t2)
+  goto (VToken t) = parserK
+
+  action :: Token -> Either Error (Action (Value t1 t2))
+  action shiftable = return $ SHIFT k
+  action reducible = return $ REDUCE fun 
+  action emptyReduce = return $ EMPTYREDUCE constant
+  action  _ = Left $ Error Token
+    
+

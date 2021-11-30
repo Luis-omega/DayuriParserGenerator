@@ -35,8 +35,8 @@ instance Ord Kind where
 -- | A -> B _Empty C
 -- | That means parser must convert those rules to equivalent
 -- | A -> B C
-data Rule = Rule {range::Range, name::Text, body::NList Kind}
-  | EmptyRule {range::Range, name :: Text}
+data Rule = Rule {range::Range, name::Text, body::NList Kind, function :: Text}
+  | EmptyRule {range::Range, name :: Text, function::Text}
   deriving Eq
 
 instance Show Rule where
@@ -74,8 +74,8 @@ newtype Reducibles = Reducibles {reducibles::Set Item}
 
 
 getRuleFirst :: Rule -> Maybe Kind
-getRuleFirst (Rule _ _ xs) = Just (head xs)
-getRuleFirst (EmptyRule _ _) = Nothing
+getRuleFirst (Rule _ _ xs _) = Just (head xs)
+getRuleFirst (EmptyRule _ _ _) = Nothing
 
 
 
@@ -87,8 +87,8 @@ rules2firstTerminal :: [Rule] -> [Text]
 rules2firstTerminal rs = 
     [x | (Just x)<- map rule2Terminal rs]
   where 
-  rule2Terminal (Rule _ _ xs) = kind2Terminal (head xs)
-  rule2Terminal (EmptyRule _ _) = Nothing 
+  rule2Terminal (Rule _ _ xs _) = kind2Terminal (head xs)
+  rule2Terminal (EmptyRule _ _ _) = Nothing 
 
 
 getFirst :: M.Map Text (S.Set Text) -> [Kind]-> S.Set Text
