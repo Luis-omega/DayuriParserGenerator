@@ -1,8 +1,13 @@
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 
+{-|
+  Implementation of Sets using 'List' assuming just 'Eq' instance.
+  A 'Ord' based implementation can't in general define a 'Ord' 
+  for Set, so we have problems building Set of Set.
+-}
+
 module EqSet(
-  EqSet()
-  ,toList
+  toList
   ,append
   ,concat
   ,fromList
@@ -13,6 +18,7 @@ module EqSet(
   ,null
   ,enumerate
 )where 
+
 
 import Data.Bifunctor(second)
 import Prelude hiding(concat, elem, null)
