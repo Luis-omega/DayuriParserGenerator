@@ -9,3 +9,13 @@ This parsers aims to allow two main things:
   error reporting capabilities in the LL range of options. 
 
 - Easy integration with HDayuri, a functional language I'm working on.
+
+
+## To Do
+
+- Build core of grammar analysis, from surface syntax to dfa.
+- Refactor code to improve readability.
+- Document code.
+- Add macro system to augment BNF to EBNF.
+- Add lexer functionality by integrating a regular grammar analysis. 
+- Add code generation starting with Haskell and allowing other languages.
